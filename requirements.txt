@@ -4,4 +4,5 @@ uvicorn==0.35.0
 python-dotenv==1.1.1
 filelock==3.19.1
 google-generativeai
+gunicorn==20.1.0
 
