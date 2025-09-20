@@ -1,144 +1,3 @@
-# import os
-# import json
-# import logging
-# from threading import Lock
-# from fastapi import FastAPI, HTTPException
-# from fastapi.responses import PlainTextResponse
-# from pydantic import BaseModel
-# import uuid
-# import asyncio
-# from concurrent.futures import ThreadPoolExecutor
-# from main2copycopy import graph
-
-# from langchain.schema import AIMessage
-
-# def serialize_state(state):
-#     new_state = dict(state)  # shallow copy
-#     if "messages" in new_state:
-#         new_state["messages"] = [
-#             m if isinstance(m, dict) else (m.to_dict() if hasattr(m, "to_dict") else str(m))
-#             for m in new_state["messages"]
-#         ]
-#     return new_state
-
-# # Setup logger
-# logger = logging.getLogger("chat_server")
-# logging.basicConfig(level=logging.DEBUG)
-# executor = ThreadPoolExecutor(max_workers=2)
-# logger.setLevel(logging.DEBUG)
-
-
-# SESSIONS_DIR = os.path.abspath("./sessions")
-# os.makedirs(SESSIONS_DIR, exist_ok=True)
-# _sessions_cache = {}
-# _cache_lock = Lock()
-
-
-# import hashlib
-
-# def _session_path(session_id: str) -> str:
-#     hashed = hashlib.sha256(session_id.encode()).hexdigest()
-#     logger.debug(f"Session path: {hashed}")
-#     return os.path.join(SESSIONS_DIR, f"{hashed}.json")
-
-
-# def initial_state():
-#     return {
-#         "user_input": None,
-#         "messages": [{"role": "system", "text": "You are a helpful travel assistant."}],
-#         "parsed": {},
-#         "arrival_time": None,
-#         "transportation_summary": None,
-#         "weather_data": [],
-#         "hotels_info": None,
-#         "user_feedback": None,
-#         "human_review_result": None,
-#         "llm_routing_decision": None,
-#         "plan": None,
-#     }
-
-
-# def load_session(session_id: str) -> dict:
-#     path = _session_path(session_id)
-    
-#     with _cache_lock:
-#         if session_id in _sessions_cache:
-#             logger.debug(f"Session {session_id} found in cache")
-#             return _sessions_cache[session_id]
-
-#     # Load from file without lock
-#     if os.path.exists(path):
-#         try:
-#             with open(path, "r", encoding="utf8") as f:
-#                 s = json.load(f)
-#                 logger.debug(f"Session {session_id} loaded from file")
-#             with _cache_lock:
-#                 _sessions_cache[session_id] = s
-#             return s
-#         except Exception as e:
-#             logger.error(f"Failed to load session {session_id}: {e}", exc_info=True)
-
-#     # Create fresh session and save
-#     logger.debug(f"Creating new session for {session_id}")
-#     s = initial_state()
-#     with _cache_lock:
-#         _sessions_cache[session_id] = s
-#     save_session(session_id, s)
-#     return s
-
-# def save_session(session_id: str, state: dict):
-#     safe_state = serialize_state(state)
-#     path = _session_path(session_id)
-#     tmp = path + ".tmp"
-#     with _cache_lock:
-#         _sessions_cache[session_id] = safe_state
-#     try:
-#         with open(tmp, "w", encoding="utf8") as f:
-#             json.dump(safe_state, f, ensure_ascii=False, indent=2)
-#         os.replace(tmp, path)
-#         logger.debug(f"Session {session_id} saved successfully")
-#     except Exception as e:
-#         logger.error(f"Failed to persist session {session_id}: {e}", exc_info=True)
-
-# app = FastAPI()
-
-
-# class ChatRequest(BaseModel):
-#     session_id: str = "default"
-#     message: str
-#     feedback: str | None = None
-
-
-# @app.get("/session/new")
-# async def new_session():
-#     sid = uuid.uuid4().hex
-#     logger.info(f"Generated new session_id={sid}")
-#     return {"session_id": sid}
-
-
-# @app.post("/chat", response_class=PlainTextResponse)
-# async def chat(req: ChatRequest):
-#     session_id = req.session_id or uuid.uuid4().hex
-#     try:
-#         state = load_session(session_id)
-#         # Add the required checkpoint config inside state:
-#         state["configurable"] = {"thread_id": session_id}
-        
-#         delta = {"user_input": req.message}
-#         if req.feedback:
-#             delta["user_feedback"] = req.feedback
-
-#         loop = asyncio.get_running_loop()
-#         new_state = await loop.run_in_executor(executor, lambda: graph.invoke(delta, state))
-#         save_session(session_id, new_state)
-
-#         plan = new_state.get("plan")
-#         response_text = plan or "Please provide more details about your trip."
-#     except Exception as e:
-#         logger.error(f"Exception in /chat: {e}", exc_info=True)
-#         raise HTTPException(status_code=500, detail="Internal server error")
-
-#     return PlainTextResponse(content=response_text, headers={"x-session-id": session_id})
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse
@@ -150,7 +9,7 @@ import json
 from filelock import FileLock
 from google.generativeai import ChatSession, GenerativeModel, configure
 
-from main2copycopy import graph
+# from main2copycopy import graph
 
 
 logger = logging.getLogger("chat_server")
@@ -266,26 +125,26 @@ async def chat(req: ChatRequest, request: Request):
             if req.feedback:
                 delta["user_feedback"] = req.feedback
 
-            try:
-                graph_output = graph.invoke(delta, config=cfg)
-                graph_state = graph.get_state(cfg).values
-                graph_msgs = graph_state.get("messages") or []
-                plan_text = graph_state.get("plan")
-            except Exception as e:
-                logger.warning(f"Graph invocation error for session {session_id_to_use}: {e}")
-                graph_msgs = []
-                plan_text = None
+            # try:
+            #     graph_output = graph.invoke(delta, config=cfg)
+            #     graph_state = graph.get_state(cfg).values
+            #     graph_msgs = graph_state.get("messages") or []
+            #     plan_text = graph_state.get("plan")
+            # except Exception as e:
+            #     logger.warning(f"Graph invocation error for session {session_id_to_use}: {e}")
+            #     graph_msgs = []
+            #     plan_text = None
 
-            for gm in graph_msgs:
-                try:
-                    content = getattr(gm, "content", None) or str(gm)
-                except Exception:
-                    content = str(gm)
-                if content:
-                    conversation.append({"role": "assistant", "content": content})
+            # for gm in graph_msgs:
+            #     try:
+            #         content = getattr(gm, "content", None) or str(gm)
+            #     except Exception:
+            #         content = str(gm)
+            #     if content:
+            #         conversation.append({"role": "assistant", "content": content})
 
-            if plan_text:
-                conversation.append({"role": "system", "content": f"Plan: {plan_text}"})
+            # if plan_text:
+            #     conversation.append({"role": "system", "content": f"Plan: {plan_text}"})
 
             conversation.append({"role": "user", "content": req.message})
 
