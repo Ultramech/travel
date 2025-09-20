@@ -56,7 +56,7 @@ Instructions:
 - If the user wants to change any input, accommodate that in the plan update.
 
 Available Data:
-- User's trip origin and destination
+- User's trip origin and destination, destination might be a state also, so you may mention all the popular cities and things to do.
 - Travel dates and duration
 - Budget level (economy, mid-range, luxury)
 - Travel companions (solo, couple, family, friends)
@@ -164,9 +164,17 @@ async def chat(req: ChatRequest, request: Request):
             response = chat_session.send_message(prompt_text)
             assistant_content = ""
             try:
-                assistant_content = response.result.candidates[0].content.parts[0].text
-            except Exception:
-                assistant_content = str(response)
+                # For the current SDK, candidates are directly under response
+                candidates = getattr(response, "candidates", [])
+                if candidates and hasattr(candidates[0], "content"):
+                    parts = getattr(candidates[0].content, "parts", [])
+                    if parts:
+                        assistant_content = parts[0].text
+                if not assistant_content:
+                    assistant_content = "Error: empty response from AI."
+            except Exception as e:
+                assistant_content = f"Error extracting AI response: {e}"
+
 
             assistant_msg = {"role": "assistant", "content": assistant_content}
             conversation.append(assistant_msg)
@@ -190,8 +198,6 @@ async def chat(req: ChatRequest, request: Request):
 
     logger.debug(f"Returning response length={len(bot_text)} for session {session_id_to_use}")
     return PlainTextResponse(content=bot_text or "", headers=headers)
-
-
 
 
 
